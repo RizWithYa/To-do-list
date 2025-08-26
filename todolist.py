@@ -1,0 +1,239 @@
+import customtkinter as ctk
+import os
+from datetime import date, datetime, timedelta
+from tkcalendar import DateEntry
+from tkinter import ttk
+
+# Nama file untuk menyimpan data
+TASKS_FILE = "tasks_data.txt"
+
+class App(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        self.title("My Task Manager")
+        self.geometry("400x700")
+
+        # --- TEMA & WARNA (Hanya Dark Mode) ---
+        ctk.set_appearance_mode("Dark")
+        self.PRIMARY_COLOR = "#1F6AA5"
+        self.TASK_FRAME_COLOR = "#333333"
+        self.TASK_FRAME_COMPLETED_COLOR = "#2B2B2B"
+        
+        # --- FONT ---
+        self.default_font = ctk.CTkFont(family="Segoe UI", size=14)
+        self.strikethrough_font = ctk.CTkFont(family="Segoe UI", size=14, overstrike=True)
+        self.deadline_font = ctk.CTkFont(family="Segoe UI", size=11, slant="italic")
+        self.main_header_font = ctk.CTkFont(family="Segoe UI", size=16, weight="bold")
+        self.date_header_font = ctk.CTkFont(family="Segoe UI", size=12, weight="bold")
+
+        # --- STRUKTUR LAYOUT UTAMA & DATA ---
+        self.grid_columnconfigure(0, weight=1); self.grid_rowconfigure(1, weight=1)
+        self.all_tasks_data = []
+        self.menu_is_open = False
+        
+        # --- MEMBUAT SEMUA ELEMEN UI ---
+        self._create_header_with_search()
+        self._create_content_area()
+        self._create_fab()
+        self._create_side_menu()
+        self._load_and_render_tasks()
+
+    def _create_header_with_search(self):
+        header_frame = ctk.CTkFrame(self, fg_color="transparent"); header_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
+        header_frame.grid_columnconfigure(1, weight=1)
+        menu_button = ctk.CTkButton(header_frame, text="☰", font=ctk.CTkFont(size=22), width=40, height=35, fg_color="transparent", hover_color="#444444", command=self._toggle_side_menu); menu_button.grid(row=0, column=0, sticky="w")
+        self.search_entry = ctk.CTkEntry(header_frame, placeholder_text="🔍 Search task...", height=35, border_width=1); self.search_entry.grid(row=0, column=1, sticky="ew", padx=(10, 0))
+        self.search_entry.bind("<KeyRelease>", self._filter_tasks)
+
+    def _create_content_area(self):
+        self.content_frame = ctk.CTkScrollableFrame(self, fg_color="transparent"); self.content_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=0)
+        self.placeholder_label = ctk.CTkLabel(self.content_frame, text="Tidak ada tugas saat ini.\nKlik '+' untuk menambahkan.", font=self.default_font, text_color="gray")
+
+    def _create_fab(self):
+        self.fab_button = ctk.CTkButton(self, text="+", font=ctk.CTkFont(size=28, weight="bold"), width=55, height=55, corner_radius=30, fg_color=self.PRIMARY_COLOR, command=self.open_add_task_window)
+        self.fab_button.place(relx=0.95, rely=0.95, anchor="se")
+
+    def _create_side_menu(self):
+        self.side_menu = ctk.CTkFrame(self, width=250, corner_radius=0, border_width=2)
+        self.side_menu.place(x=-250, y=0, relheight=1.0)
+        menu_header_frame = ctk.CTkFrame(self.side_menu, fg_color="transparent"); menu_header_frame.pack(fill="x", padx=10, pady=10)
+        close_menu_button = ctk.CTkButton(menu_header_frame, text="☰", font=ctk.CTkFont(size=22), width=40, height=35, fg_color="transparent", hover_color="#444444", command=self._toggle_side_menu); close_menu_button.pack(side="left")
+        ctk.CTkLabel(menu_header_frame, text="Menu", font=self.main_header_font).pack(side="left", padx=10)
+        ctk.CTkButton(self.side_menu, text="All Tasks", anchor="w", fg_color="transparent", height=40).pack(fill="x", padx=10)
+        ctk.CTkButton(self.side_menu, text="Settings", anchor="w", fg_color="transparent", height=40).pack(fill="x", padx=10)
+
+    def _toggle_side_menu(self):
+        if self.menu_is_open:
+            self._animate_menu(start=0, end=-250, step=-15); self.menu_is_open = False
+        else:
+            self.side_menu.tkraise(); self._animate_menu(start=-250, end=0, step=15); self.menu_is_open = True
+
+    def _animate_menu(self, start, end, step):
+        current_pos = self.side_menu.winfo_x()
+        if (step > 0 and current_pos < end) or (step < 0 and current_pos > end):
+            self.side_menu.place(x=current_pos + step); self.after(5, self._animate_menu, start, end, step)
+        else:
+            self.side_menu.place(x=end)
+
+    def open_add_task_window(self):
+        if hasattr(self, 'add_window') and self.add_window.winfo_exists(): self.add_window.focus(); return
+        
+        self.add_window = ctk.CTkToplevel(self)
+        self.add_window.title("Add New Task")
+        self.add_window.geometry("400x300")
+        self.add_window.transient(self)
+        self.add_window.grab_set()
+        
+        main_frame = ctk.CTkFrame(self.add_window, fg_color="transparent")
+        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        main_frame.grid_columnconfigure(0, weight=2)
+        main_frame.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(main_frame, text="Task Description").grid(row=0, column=0, columnspan=2, sticky="w")
+        task_entry = ctk.CTkEntry(main_frame, placeholder_text="What do you need to do?", height=35)
+        task_entry.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(5, 20))
+        task_entry.focus()
+        
+        ctk.CTkLabel(main_frame, text="Due Date").grid(row=2, column=0, sticky="w")
+        
+        # ### PERBAIKAN DI SINI ###
+        # Hapus `style` dan berikan warna secara langsung
+        date_picker = DateEntry(
+            main_frame, 
+            date_pattern='y-mm-dd',
+            background='#2B2B2B',
+            foreground='white',
+            bordercolor="#444444",
+            headersbackground='#2B2B2B',
+            normalbackground='#2B2B2B',
+            weekendbackground='#2B2B2B',
+            othermonthforeground='gray40',
+            othermonthbackground='#2B2B2B',
+            selectbackground=self.PRIMARY_COLOR,
+            selectforeground='white',
+            arrowcolor='white',
+        )
+        date_picker.grid(row=3, column=0, sticky="ew", pady=(5, 0), ipady=5)
+        
+        ctk.CTkLabel(main_frame, text="Time").grid(row=2, column=1, sticky="w", padx=(10, 0))
+        time_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        time_frame.grid(row=3, column=1, sticky="ew", padx=(10, 0), pady=(5, 0))
+        time_frame.grid_columnconfigure(0, weight=1); time_frame.grid_columnconfigure(1, weight=1)
+        
+        hours = [f"{h:02d}" for h in range(24)]; minutes = [f"{m:02d}" for m in range(0, 60, 5)]
+        hour_var = ctk.StringVar(value="23"); minute_var = ctk.StringVar(value="55")
+        
+        hour_menu = ctk.CTkOptionMenu(time_frame, variable=hour_var, values=hours, width=80)
+        hour_menu.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        minute_menu = ctk.CTkOptionMenu(time_frame, variable=minute_var, values=minutes, width=80)
+        minute_menu.grid(row=0, column=1, sticky="ew", padx=(5, 0))
+        
+        add_button_command = lambda: self.add_task_from_popup(task_entry, date_picker, hour_var, minute_var, self.add_window)
+        button = ctk.CTkButton(main_frame, text="Add Task", height=40, command=add_button_command)
+        button.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(30, 0))
+        task_entry.bind("<Return>", lambda event: add_button_command())
+        
+    def add_task_from_popup(self, task_entry, date_picker, hour_var, minute_var, window):
+        task_text = task_entry.get().strip()
+        if not task_text: return
+        selected_date = date_picker.get_date()
+        selected_hour = int(hour_var.get()); selected_minute = int(minute_var.get())
+        deadline_dt = datetime(selected_date.year, selected_date.month, selected_date.day, selected_hour, selected_minute)
+        new_task_data = {'text': task_text, 'deadline': deadline_dt, 'is_checked': False}
+        self.all_tasks_data.append(new_task_data)
+        self._save_and_refresh_ui()
+        window.destroy()
+
+    def _format_date_header(self, date_obj):
+        today = date.today(); yesterday = today - timedelta(days=1)
+        if date_obj == today: return f"Hari ini - {date_obj.strftime('%d %B %Y')}"
+        elif date_obj == yesterday: return f"Kemarin - {date_obj.strftime('%d %B %Y')}"
+        else: return date_obj.strftime('%A, %d %B %Y')
+    
+    def _render_all_tasks(self):
+        for widget in self.content_frame.winfo_children(): widget.destroy()
+        incomplete_tasks = sorted([t for t in self.all_tasks_data if not t['is_checked']], key=lambda x: x['deadline'])
+        completed_tasks = sorted([t for t in self.all_tasks_data if t['is_checked']], key=lambda x: x['deadline'], reverse=True)
+        if incomplete_tasks:
+            ctk.CTkLabel(self.content_frame, text="Tasks to do", font=self.main_header_font, anchor="w").pack(fill="x", padx=5, pady=(5,10))
+            last_date_str = None
+            for task_info in incomplete_tasks:
+                date_obj = task_info['deadline'].date()
+                if date_obj != last_date_str:
+                    formatted_date = self._format_date_header(date_obj)
+                    ctk.CTkLabel(self.content_frame, text=formatted_date, font=self.date_header_font, text_color="gray").pack(fill="x", padx=5, pady=(15, 5), anchor="w")
+                    last_date_str = date_obj
+                self._create_task_widget(task_info)
+        if completed_tasks:
+            ctk.CTkFrame(self.content_frame, height=2, fg_color="#3D3D3D").pack(fill="x", padx=5, pady=20)
+            ctk.CTkLabel(self.content_frame, text="Completed", font=self.main_header_font, anchor="w").pack(fill="x", padx=5, pady=(0,10))
+            last_date_str = None
+            for task_info in completed_tasks:
+                date_obj = task_info['deadline'].date()
+                if date_obj != last_date_str:
+                    formatted_date = self._format_date_header(date_obj)
+                    ctk.CTkLabel(self.content_frame, text=formatted_date, font=self.date_header_font, text_color="gray").pack(fill="x", padx=5, pady=(15, 5), anchor="w")
+                    last_date_str = date_obj
+                self._create_task_widget(task_info)
+        if not self.all_tasks_data: self.placeholder_label.pack(expand=True, pady=50)
+
+    def _create_task_widget(self, task_info):
+        task_frame = ctk.CTkFrame(self.content_frame, fg_color=self.TASK_FRAME_COLOR); task_frame.pack(fill="x", padx=5, pady=4); task_frame.grid_columnconfigure(0, weight=1)
+        text_frame = ctk.CTkFrame(task_frame, fg_color="transparent"); text_frame.grid(row=0, column=0, sticky="ew", padx=(15, 5), pady=(5,5))
+        task_label = ctk.CTkLabel(text_frame, text=task_info['text'], font=self.default_font, anchor="w"); task_label.pack(fill="x")
+        deadline_label = ctk.CTkLabel(text_frame, text=f"Deadline: {task_info['deadline'].strftime('%H:%M')}", font=self.deadline_font, text_color="gray", anchor="w"); deadline_label.pack(fill="x")
+        options_button = ctk.CTkButton(task_frame, text="⋮", width=28, height=28, font=ctk.CTkFont(size=20), text_color="gray", fg_color="transparent", hover_color="#444444"); options_button.grid(row=0, column=1, sticky="e", padx=(0, 10))
+        task_info['widgets'] = {'frame': task_frame, 'label': task_label, 'deadline_label': deadline_label}
+        options_button.configure(command=lambda info=task_info, btn=options_button: self._show_task_options_menu(info, btn)); self._update_task_appearance(task_info)
+
+    def _update_task_appearance(self, task_info):
+        widgets = task_info.get('widgets');
+        if not widgets: return
+        if task_info['is_checked']:
+            widgets['label'].configure(font=self.strikethrough_font, text_color="gray"); widgets['deadline_label'].configure(text_color="gray"); widgets['frame'].configure(fg_color=self.TASK_FRAME_COMPLETED_COLOR)
+        else:
+            widgets['label'].configure(font=self.default_font, text_color="white"); widgets['deadline_label'].configure(text_color="gray"); widgets['frame'].configure(fg_color=self.TASK_FRAME_COLOR)
+    
+    def _save_and_refresh_ui(self):
+        self._save_tasks(); self._render_all_tasks()
+        
+    def _save_tasks(self):
+        with open(TASKS_FILE, "w") as f:
+            for task in self.all_tasks_data: f.write(f"{int(task['is_checked'])}|{task['text']}|{task['deadline'].isoformat()}\n")
+            
+    def _load_and_render_tasks(self):
+        if os.path.exists(TASKS_FILE):
+            with open(TASKS_FILE, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        parts = line.split("|", 2)
+                        if len(parts) == 3:
+                            is_checked, text, deadline_iso = parts
+                            self.all_tasks_data.append({'text': text, 'deadline': datetime.fromisoformat(deadline_iso), 'is_checked': bool(int(is_checked))})
+        self._render_all_tasks()
+        
+    def _show_task_options_menu(self, task_info, button):
+        menu = ctk.CTkToplevel(self); menu.overrideredirect(True); menu_frame = ctk.CTkFrame(menu, corner_radius=8, border_width=1, border_color="#555555"); menu_frame.pack()
+        toggle_text = "Batal tandai" if task_info['is_checked'] else "Tandai selesai"; toggle_button = ctk.CTkButton(menu_frame, text=toggle_text, fg_color="transparent", anchor="w", command=lambda: (self._toggle_task_completion(task_info), menu.destroy())); toggle_button.pack(fill="x", padx=5, pady=5)
+        delete_button = ctk.CTkButton(menu_frame, text="Hapus", fg_color="transparent", text_color="#F47174", anchor="w", command=lambda: (self._delete_task(task_info), menu.destroy())); delete_button.pack(fill="x", padx=5, pady=(0, 5))
+        x = button.winfo_rootx() - menu.winfo_width() + 40; y = button.winfo_rooty() + button.winfo_height(); menu.geometry(f"+{x}+{y}")
+        menu.grab_set(); menu.bind("<FocusOut>", lambda event: menu.destroy())
+
+    def _toggle_task_completion(self, task_info):
+        task_info['is_checked'] = not task_info['is_checked']; self._save_and_refresh_ui()
+
+    def _delete_task(self, task_info_to_delete):
+        self.all_tasks_data.remove(task_info_to_delete); self._save_and_refresh_ui()
+        
+    def _filter_tasks(self, event=None):
+        search_term = self.search_entry.get().lower()
+        for task in self.all_tasks_data:
+            widgets = task.get('widgets')
+            if widgets:
+                if search_term in task['text'].lower(): widgets['frame'].pack(fill="x", padx=5, pady=4)
+                else: widgets['frame'].pack_forget()
+
+if __name__ == "__main__":
+    app = App()
+    app.mainloop()
