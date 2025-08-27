@@ -22,46 +22,54 @@ class GroupTasksPage(ctk.CTkFrame):
         self.group_title_label = ctk.CTkLabel(self.header_frame, text="", font=self.page_title_font)
         self.group_title_label.pack(side="left", padx=20)
         
-        self.content_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
-        self.content_frame.pack(fill="both", expand=True, padx=20)
-        self.placeholder_label = ctk.CTkLabel(self.content_frame, text="Tidak ada tugas di grup ini.", text_color="gray")
+        # frame scrollable untuk daftar tugas grup
+        self.scrollable_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        self.scrollable_frame.pack(fill="both", expand=True)
 
-    def render_tasks_for_group(self, group_name):
-        """Menggambar semua tugas untuk grup yang dipilih."""
-        self.group_title_label.configure(text=group_name)
+        # di dalam scrollable_frame, buat container tasks
+        self.tasks_frame = ctk.CTkFrame(self.scrollable_frame, fg_color="transparent")
+        self.tasks_frame.pack(fill="both", expand=True)
         
-        for widget in self.content_frame.winfo_children():
+    def render_tasks_for_group(self, group_name):
+        for widget in self.tasks_frame.winfo_children():
             widget.destroy()
 
-        group_tasks = self.app.college_tasks.get(group_name, [])
-        if not group_tasks:
-            self.placeholder_label.pack(expand=True, pady=50)
-            return
-            
-        self.placeholder_label.pack_forget()
+        tasks = self.app.college_tasks.get(group_name, [])
 
-        incomplete_tasks = sorted([t for t in group_tasks if not t['is_checked']], key=lambda x: x['deadline'])
-        completed_tasks = sorted([t for t in group_tasks if t['is_checked']], key=lambda x: x['deadline'], reverse=True)
+        if not tasks:
+            # buat placeholder baru setiap kali kosong
+            placeholder_label = ctk.CTkLabel(
+                self.tasks_frame,
+                text="Belum ada tugas di grup ini.\nKlik '+' untuk menambahkan.",
+                font=self.app.default_font,
+                text_color="gray"
+            )
+            placeholder_label.pack(expand=True, pady=50)
+            return
+
+        # kalau ada tugas → render task
+        incomplete_tasks = sorted([t for t in tasks if not t['is_checked']], key=lambda x: x['deadline'])
+        completed_tasks = sorted([t for t in tasks if t['is_checked']], key=lambda x: x['deadline'], reverse=True)
 
         if incomplete_tasks:
-            ctk.CTkLabel(self.content_frame, text="Tasks to do", font=self.main_header_font, anchor="w").pack(fill="x", padx=5, pady=(5,10))
+            ctk.CTkLabel(self.tasks_frame, text="Tasks to do", font=self.app.main_header_font, anchor="w").pack(fill="x", padx=5, pady=(5,10))
             last_date_obj = None
             for task_info in incomplete_tasks:
                 date_obj = task_info['deadline'].date()
                 if date_obj != last_date_obj:
                     formatted_date = self.app._format_date_header(date_obj)
-                    ctk.CTkLabel(self.content_frame, text=formatted_date, font=self.date_header_font, text_color="gray").pack(fill="x", padx=5, pady=(15, 5), anchor="w")
+                    ctk.CTkLabel(self.tasks_frame, text=formatted_date, font=self.app.date_header_font, text_color="gray").pack(fill="x", padx=5, pady=(15, 5), anchor="w")
                     last_date_obj = date_obj
-                self.app._create_task_widget(self.content_frame, task_info, group_name)
+                self.app._create_task_widget(self.tasks_frame, task_info, group_name)
 
         if completed_tasks:
-            ctk.CTkFrame(self.content_frame, height=2, fg_color=self.app.SEPARATOR_COLOR[self.app.appearance_mode]).pack(fill="x", padx=5, pady=20)
-            ctk.CTkLabel(self.content_frame, text="Completed", font=self.main_header_font, anchor="w").pack(fill="x", padx=5, pady=(0,10))
+            ctk.CTkFrame(self.tasks_frame, height=2, fg_color=self.app.SEPARATOR_COLOR[self.app.appearance_mode]).pack(fill="x", padx=5, pady=20)
+            ctk.CTkLabel(self.tasks_frame, text="Completed", font=self.app.main_header_font, anchor="w").pack(fill="x", padx=5, pady=(0,10))
             last_date_obj = None
             for task_info in completed_tasks:
                 date_obj = task_info['deadline'].date()
                 if date_obj != last_date_obj:
                     formatted_date = self.app._format_date_header(date_obj)
-                    ctk.CTkLabel(self.content_frame, text=formatted_date, font=self.date_header_font, text_color="gray").pack(fill="x", padx=5, pady=(15, 5), anchor="w")
+                    ctk.CTkLabel(self.tasks_frame, text=formatted_date, font=self.app.date_header_font, text_color="gray").pack(fill="x", padx=5, pady=(15, 5), anchor="w")
                     last_date_obj = date_obj
-                self.app._create_task_widget(self.content_frame, task_info, group_name)
+                self.app._create_task_widget(self.tasks_frame, task_info, group_name)

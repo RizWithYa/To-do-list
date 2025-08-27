@@ -137,6 +137,12 @@ class App(ctk.CTk):
             self._save_tasks()
             self.college_page_frame.render_groups()
 
+    def delete_group(self, group_name):
+        if group_name in self.college_tasks:
+            del self.college_tasks[group_name]
+            self._save_tasks()
+            self.college_page_frame.render_groups() # Render ulang halaman grup
+
     def add_task_from_popup(self, task_entry, date_picker, hour_var, minute_var, window):
         task_text = task_entry.get().strip()
         if not task_text: return

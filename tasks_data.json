@@ -1,44 +1,4 @@
 {
-    "personal_tasks": [
-        {
-            "text": "aaa",
-            "deadline": "2025-08-27 23:55:00",
-            "is_checked": false,
-            "id": "3dcbc9b7",
-            "widgets": {
-                "frame": ".!ctkframe2.!ctkframe.!ctkframe.!canvas.!ctkscrollableframe.!ctkframe",
-                "label": ".!ctkframe2.!ctkframe.!ctkframe.!canvas.!ctkscrollableframe.!ctkframe.!ctkframe.!ctklabel",
-                "deadline_label": ".!ctkframe2.!ctkframe.!ctkframe.!canvas.!ctkscrollableframe.!ctkframe.!ctkframe.!ctklabel2"
-            }
-        },
-        {
-            "text": "a",
-            "deadline": "2025-10-12 23:55:00",
-            "is_checked": false,
-            "id": "590cee7d",
-            "widgets": {
-                "frame": ".!ctkframe2.!ctkframe.!ctkframe.!canvas.!ctkscrollableframe.!ctkframe3",
-                "label": ".!ctkframe2.!ctkframe.!ctkframe.!canvas.!ctkscrollableframe.!ctkframe3.!ctkframe.!ctklabel",
-                "deadline_label": ".!ctkframe2.!ctkframe.!ctkframe.!canvas.!ctkscrollableframe.!ctkframe3.!ctkframe.!ctklabel2"
-            }
-        },
-        {
-            "text": "a",
-            "deadline": "2025-09-07 23:55:00",
-            "is_checked": false,
-            "id": "1cce0baf",
-            "widgets": {
-                "frame": ".!ctkframe2.!ctkframe.!ctkframe.!canvas.!ctkscrollableframe.!ctkframe2",
-                "label": ".!ctkframe2.!ctkframe.!ctkframe.!canvas.!ctkscrollableframe.!ctkframe2.!ctkframe.!ctklabel",
-                "deadline_label": ".!ctkframe2.!ctkframe.!ctkframe.!canvas.!ctkscrollableframe.!ctkframe2.!ctkframe.!ctklabel2"
-            }
-        },
-        {
-            "text": "aar",
-            "deadline": "2025-08-27 01:55:00",
-            "is_checked": false,
-            "id": "52068879"
-        }
-    ],
+    "personal_tasks": [],
     "college_tasks": {}
 }
