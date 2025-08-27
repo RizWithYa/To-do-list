@@ -30,10 +30,16 @@ class CollegePage(ctk.CTkFrame):
             widget.destroy()
 
         if not self.app.college_tasks:
-            self.placeholder_label.pack(expand=True, pady=50)
+            # Buat placeholder baru setiap kali dibutuhkan
+            placeholder_label = ctk.CTkLabel(
+                self.groups_frame,
+                text="Belum ada grup, silakan tambahkan terlebih dahulu.",
+                font=self.group_font
+            )
+            placeholder_label.pack(expand=True, pady=50)
             return
 
-        self.placeholder_label.pack_forget()
+        # Jika ada grup, tampilkan tombol-tombol grup
         sorted_groups = sorted(self.app.college_tasks.keys())
         
         for group_name in sorted_groups:
